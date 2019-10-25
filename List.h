@@ -41,7 +41,7 @@ int index(List L);	//returns current index on cursor if defined, else returns -1
 void* front(List L);	//returns element at front of L (Precond: length() > 0)
 void* back(List L);	//returns element at back of L (Precond: length() > 0)
 void* get(List L);	//returns current element on cursor in L (Precond: length() > 0 && index >= 0)
-int equals(List A, List B);	//returns true(1) if List A and B are in same state, else returns false(0)
+//int equals(List A, List B);	//returns true(1) if List A and B are in same state, else returns false(0)
 // Manipulation Procedures -------------------------------------------------------------
 void clear(List L);	//resets L to empty state
 

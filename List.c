@@ -147,6 +147,25 @@ void* get(List L) {
 	}
 	return L->cursor->data;
 }
+
+/*//equals()
+//returns true(1) if A and B are in same state, false(0) otherwise
+int equals(List A, List B) {
+	if (A->length != B->length) {
+		return 0;
+	}
+	Node tempA = A->front;
+	Node tempB = B->front;
+	while (tempA != NULL) {
+		if (tempA->data != tempB->data) {
+			return 0;
+		}
+		tempA = tempA->next;
+		tempB = tempB->next;
+	}
+	return 1;
+}
+*/
 // Manipulation Procedures -------------------------------------------------------------
 
 //clear()
