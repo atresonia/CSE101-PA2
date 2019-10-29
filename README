@@ -1,0 +1,17 @@
+Sonia Atre, smatre@ucsc.edu, CSE 101, 10/28/19
+
+This README file lists all the files to be submitted in pa2 and gives instructions on how to run the program. 
+
+Instructions to run this assignment: type "make", which creates an executable "Sparse". Then, type "Sparse" followed by the 2 command line arguments, the input and output file.
+
+Role: The program creates a Matrix ADT to compute Matrix operations on a sparse matrix and prints these operations to an output file.
+
+Files submitted:
+	- README
+	- List.c
+	- List.h
+	- ListTest.c
+	- Matrix.c
+	- Matrix.h
+	- MatrixTest.c
+	- Makefile

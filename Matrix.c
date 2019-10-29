@@ -4,6 +4,24 @@
 *
 *Matrix.c
 *class: CSE101
+*10/28/19
+*
+*Role: creates a Matrix ADT used for the Matrix implementation
+*/
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+#include <assert.h>
+#include "List.h"
+#include "Matrix.h"
+
+/*
+*Sonia Atre
+*smatre@ucsc.edu
+*
+*Matrix.c
+*class: CSE101
 *10/11/19
 *
 *Role: creates a Matrix ADT used for the Matrix implementation
@@ -70,8 +88,7 @@ Entry getEntry(Matrix M, int i, int j) {
 		exit(EXIT_FAILURE);
 	}
 	List L = M->entries[i - 1];
-	if (L == NULL) {
-		printf("List null\n");
+	if (length(L) == 0) {
 		return NULL;
 	}
 	for (moveFront(L); index(L) >= 0; moveNext(L)) {
@@ -81,6 +98,88 @@ Entry getEntry(Matrix M, int i, int j) {
 		}
 	}
 	return NULL;
+}
+
+double vectorDot(List A, List B) {
+	double sum = 0;
+	moveFront(A);
+	moveFront(B);
+	while (index(A) >= 0 && index(B) >= 0) {
+		Entry entryA = (Entry)get(A);
+		Entry entryB = (Entry)get(B);
+		if (entryA->column == entryB->column) {
+			sum += (entryA->value * entryB->value);
+			//printf("sum: %d\n", sum);
+			moveNext(A);
+			moveNext(B);
+		} else if (entryA->column < entryB->column) {
+			moveNext(A);
+		} else {
+			moveNext(B);
+		}
+	}
+	return sum;
+}
+
+double getValue(Matrix M, int i, int j) {
+	Entry entry = getEntry(M, i, j);
+	return entry ? entry->value : 0.0;
+}
+
+Matrix sumOrDiff(Matrix A, Matrix B, int sum) {
+	char* op = sum ? "sum" : "diff";
+	if (A == NULL) {
+		printf("Matrix error: Calling %s on NULL Matrix reference A\n", op);
+		exit(1);
+	}
+	if (B == NULL) {
+		printf("Matrix error: Calling %s on NULL Matrix reference B\n", op);
+		exit(1);
+	}
+	if (size(A) != size(B)) {
+		printf("Matrix error: Calling %s on matrices of different sizes\n", op);
+		exit(1);
+	}
+	Matrix C = newMatrix(size(A));
+	for (int i = 0; i < size(A); i++) {
+		List rowA = A->entries[i];
+		if (length(rowA) == 0) {
+			continue;
+		}
+		for (moveFront(rowA); index(rowA) >= 0; moveNext(rowA)) {
+			Entry X = (Entry)get(rowA);
+			//Entry Y = getEntry(B, i + 1, X->column);
+			double result = sum ? X->value + getValue(B, i + 1, X->column) : X->value - getValue(B, i + 1, X->column);
+			if (result != 0) {
+				append(C->entries[i], newEntry(X->column, result));
+				C->NNZ++;
+			}
+
+		}
+
+	}
+	for (int i = 0; i < size(B); i++) {
+		List rowB = B->entries[i];
+		if (length(rowB) == 0) {
+			continue;
+		}
+		for (moveFront(rowB); index(rowB) >= 0; moveNext(rowB)) {
+			Entry X = (Entry)get(rowB);
+			Entry Y = getEntry(A, i + 1, X->column);
+			if (Y == NULL) {
+				double result = sum ? X->value : -1 * X->value;
+				if (result != 0) {
+					changeEntry(C, i + 1, X->column, result);
+					//append(C->entries[i], newEntry(X->column, result));
+					//C->NNZ++;
+
+				}
+			}
+
+		}
+
+	}
+	return C;
 }
 
 //Constructors-Destructors ------------------------------------------------
@@ -107,7 +206,7 @@ Matrix newMatrix(int n) {
 
 //freeList()
 //Destructor for the List ADT
-void freeMatrix(Matrix* pM) {
+void freeMatrix(Matrix * pM) {
 	if (pM != NULL && *pM != NULL) {
 		for (int i = 0; i < (*pM)->size; i++) {
 			if ((*pM)->entries[i] != NULL) {
@@ -160,6 +259,7 @@ int equals(Matrix A, Matrix B) {
 
 	//check lengths
 	if (A->size != B->size) {
+		//printf("Going in size\n");
 		return 0;
 	}
 	//check NNZ
@@ -177,7 +277,7 @@ int equals(Matrix A, Matrix B) {
 		while (index(rowA) != -1 && index(rowB) != -1) {
 			Entry entryA = (Entry)get(rowA);
 			Entry entryB = (Entry)get(rowB);
-			if (entryA->value != entryB->value) {
+			if (!isNearlyEqual(entryA->value, entryB->value) ) {
 				return 0;
 			}
 			moveNext(rowA);
@@ -254,12 +354,11 @@ void makeZero(Matrix M) {
 	}
 	for (int i = 0; i < size(M); i++) {
 		List L = (M->entries)[i];
-		if (L != NULL) {
+		if (length(L) > 0) {
 			//first clear Entry ob that each node's data points to
 			for (moveFront(L); index(L) >= 0; moveNext(L)) {
 				free((Entry)get(L));
 			}
-			//freeList(&L);
 			clear(L);
 
 		}
@@ -284,15 +383,17 @@ void changeEntry(Matrix M, int i, int j, double x) {
 		exit(EXIT_FAILURE);
 	}
 
-	if (isNearlyEqual(x, 0.0) && M->entries[i - 1] == NULL) {
+	if (isNearlyEqual(x, 0.0) && length(M->entries[i - 1]) == 0) {
 		return;
 	}
 
 	//if List hasn't been created yet
 	if (length(M->entries[i - 1]) == 0) {
-		Entry E = newEntry(j, x);
-		append(M->entries[i - 1], E);
-		M->NNZ++;
+		//Entry E = newEntry(j, x);
+		if (!isNearlyEqual(x, 0)) {
+			append(M->entries[i - 1], newEntry(j, x));
+			M->NNZ++;
+		}
 		return;
 	}
 
@@ -332,20 +433,21 @@ void changeEntry(Matrix M, int i, int j, double x) {
 // Returns a reference to a new Matrix object having the same entries as A.
 Matrix copy(Matrix A) {
 	if (A == NULL) {
-		fprintf(stderr, "Matrix Error: makeZero() called on NULL Matrix reference\n");
+		fprintf(stderr, "Matrix Error: copy() called on NULL Matrix reference\n");
 		exit(EXIT_FAILURE);
 	}
 	Matrix B = newMatrix(size(A));
+
 	for (int i = 0; i < size(A); i++) {
-		List L = A->entries[i];
-		if (length(L) != 0) {
-			for (moveFront(L); index(L) >= 0; moveNext(L)) {
-				Entry E = (Entry)get(L);
-				append(L, newEntry(E->column, E->value));
+		List rowA = A->entries[i];
+		List rowB = B->entries[i];
+		if (length(rowA) != 0) {
+			for (moveFront(rowA); index(rowA) >= 0; moveNext(rowA)) {
+				Entry E = (Entry)get(rowA);
+				append(rowB, newEntry(E->column, E->value));
 			}
 		}
 	}
-
 
 	B->NNZ = A->NNZ;
 	return B;
@@ -354,170 +456,116 @@ Matrix copy(Matrix A) {
 // Returns a reference to a new Matrix object representing A+B.
 // pre: size(A)==size(B)
 Matrix sum(Matrix A, Matrix B) {
-	if (A == NULL) {
-		fprintf(stderr, "Matrix Error: sum() called on NULL Matrix A reference\n");
-		exit(EXIT_FAILURE);
-	}
-	if (B == NULL) {
-		fprintf(stderr, "Matrix Error: sum() called on NULL Matrix B reference\n");
-		exit(EXIT_FAILURE);
-	}
-
-	//check lengths
-	if (A->size != B->size) {
-		fprintf(stderr, "Cannot add matrixes of different lengths\n");
-		exit(EXIT_FAILURE);
-	}
-	Matrix C = newMatrix(size(A));
-	C->NNZ = A->NNZ;
-	for (int i = 0; i < A->size; i++) {
-		List rowA = A->entries[i];
-		List rowB = B->entries[i];
-		List rowC = C->entries[i];
-		if (length(rowA) == 0 && length(rowB) == 0) {
-			continue;
-		}
-
-		//either rowA or rowB is null, but not both, add not null list to C
-
-		if (length(rowA) == 0 && length(rowB) != 0) {
-			C->entries[i] = rowB;
-		} else if (length(rowB) == 0 && length(rowA) != 0) {
-			C->entries[i] = rowA;
-		} else {
-			moveFront(rowA);
-			moveFront(rowB);
-			while (index(rowA) >= 0 || index(rowB) >= 0) {
-				//getEntry: returns null if list is null or no entry at col j
-
-				Entry X = (Entry)get(rowA);
-				Entry Y = (Entry)get(rowB);
-
-				//if columns match, add entry values together
-				if (X->column == Y->column) {
-					Entry E = newEntry(X->column, X->value + Y->value);
-					append(rowC, E);
-					moveNext(rowA);
-					moveNext(rowB);
-				} else if (X->column < Y->column) {
-					append(rowC, (Entry)get(rowA));
-					moveNext(rowA);
-				} else {
-					append(rowC, (Entry)get(rowB));
-					moveNext(rowB);
-				}
-			}
-			if (index(rowA) >= 0) {
-				while (index(rowA) >= 0) {
-					Entry E = (Entry)get(rowA);
-					append(rowC, E);
-					moveNext(rowA);
-				}
-			} else if (index(rowB) >= 0) {
-				while (index(rowB) >= 0) {
-					Entry E = (Entry)get(rowB);
-					append(rowC, E);
-					moveNext(rowB);
-				}
-
-			}
-
-		}
-
-	}
-
-	return C;
+	return sumOrDiff(A, B, 1);
 }
 
 // diff()
 // Returns a reference to a new Matrix object representing A-B.
 // pre: size(A)==size(B)
-Matrix diff (Matrix A, Matrix B) {
-	if (A == NULL) {
-		fprintf(stderr, "Matrix Error: sum() called on NULL Matrix A reference\n");
-		exit(EXIT_FAILURE);
-	}
-	if (B == NULL) {
-		fprintf(stderr, "Matrix Error: sum() called on NULL Matrix B reference\n");
-		exit(EXIT_FAILURE);
-	}
-
-	//check lengths
-	if (A->size != B->size) {
-		fprintf(stderr, "Cannot add matrixes of different lengths\n");
-		exit(EXIT_FAILURE);
-	}
-	Matrix C = newMatrix(size(A));
-	for (int i = 0; i < A->size; i++) {
-		List rowA = A->entries[i];
-		List rowB = B->entries[i];
-		List rowC = C->entries[i];
-
-		if (length(rowA) == 0 && length(rowB) == 0) {
-			continue;
-		}
-
-		//either rowA or rowB is null, but not both, add not null list to C
-
-		if (length(rowA) == 0 && length(rowB) != 0) {
-			C->entries[i] = rowB;
-		} else if (length(rowB) == 0 && length(rowA) != 0) {
-			C->entries[i] = rowA;
-		} else {
-			moveFront(rowA);
-			moveFront(rowB);
-			while (index(rowA) >= 0 || index(rowB) >= 0) {
-				//getEntry: returns null if list is null or no entry at col j
-
-				Entry X = (Entry)get(rowA);
-				Entry Y = (Entry)get(rowB);
-
-				//if columns match, add entry values together
-				if (X->column == Y->column) {
-					Entry E = newEntry(X->column, X->value - Y->value);
-					if (E->value != 0) {
-						append(rowC, E);
-						C->NNZ++;
-					}
-					moveNext(rowA);
-					moveNext(rowB);
-				} else if (X->column < Y->column) {
-					append(rowC, (Entry)get(rowA));
-					moveNext(rowA);
-				} else {
-					append(rowC, (Entry)get(rowB));
-					moveNext(rowB);
-				}
-			}
-			if (index(rowA) >= 0) {
-				while (index(rowA) >= 0) {
-					Entry E = (Entry)get(rowA);
-					append(rowC, E);
-					moveNext(rowA);
-				}
-			} else if (index(rowB) >= 0) {
-				while (index(rowB) >= 0) {
-					Entry E = (Entry)get(rowB);
-					append(rowC, E);
-					moveNext(rowB);
-				}
-
-			}
-
-		}
-
-	}
-
-	return C;
+Matrix diff(Matrix A, Matrix B) {
+	return sumOrDiff(A, B, 0);
 }
 
-/*
 // transpose()
 // Returns a reference to a new Matrix object representing the transpose
 // of A.
 Matrix transpose(Matrix A) {
+	if (A == NULL) {
+		fprintf(stderr, "Matrix Error: transpose() called on NULL Matrix reference\n");
+		exit(EXIT_FAILURE);
+	}
+	Matrix B = newMatrix(size(A));
+	B->NNZ = A->NNZ;
+	for (int i = 0; i < size(A); i++) {
+		List rowA = A->entries[i];
+		if (length(rowA) != 0) {
+			for (moveFront(rowA); index(rowA) >= 0; moveNext(rowA)) {
+				Entry entryA = (Entry)get(rowA);
+				Entry entryB = newEntry(i + 1, entryA->value);
+				List rowB = B->entries[entryA->column - 1];
+				append(rowB, entryB);
+			}
+		}
 
+	}
+
+	return B;
 }
+
+// scalarMult()
+// Returns a reference to a new Matrix object representing xA.
+Matrix scalarMult(double x, Matrix A) {
+	if (A == NULL) {
+		fprintf(stderr, "Matrix Error: scalarMult() called on NULL Matrix A reference\n");
+		exit(EXIT_FAILURE);
+	}
+	Matrix M = newMatrix(size(A));
+	if (isNearlyEqual(x, 0.0)) {
+		return M;
+	}
+
+	M->NNZ = A->NNZ;
+	for (int i = 0; i < size(A); i++) {
+		List rowA = A->entries[i];
+		if (length(rowA) != 0) {
+			for (moveFront(rowA); index(rowA) >= 0; moveNext(rowA)) {
+				Entry E = (Entry)get(rowA);
+				append(M->entries[i], newEntry(E->column, E->value * x));
+			}
+		}
+
+	}
+	return M;
+}
+
+// product()
+// Returns a reference to a new Matrix object representing AB
+// pre: size(A)==size(B)
+Matrix product(Matrix A, Matrix B) {
+	if (A == NULL) {
+		fprintf(stderr, "Matrix Error: product() called on NULL Matrix A reference\n");
+		exit(EXIT_FAILURE);
+	}
+	if (B == NULL) {
+		fprintf(stderr, "Matrix Error: product() called on NULL Matrix B reference\n");
+		exit(EXIT_FAILURE);
+	}
+	//check lengths
+	if (A->size != B->size) {
+		fprintf(stderr, "Cannot multiply matrixes of different lengths\n");
+		exit(EXIT_FAILURE);
+	}
+	Matrix C = newMatrix(size(A));
+	Matrix D = transpose(B);
+
+	for (int i = 0; i < size(A); i++) {
+
+		List rowA = A->entries[i];
+		if (length(rowA) != 0) {
+			for (int j = 0; j < size(D); j++) {
+				List rowD = D->entries[j];
+				if (length(rowD) != 0) {
+					List rowD = D->entries[j];
+					double val = vectorDot(rowA, rowD);
+					if (!isNearlyEqual(val, 0.0)) {
+						append(C->entries[i], newEntry(j + 1, val));
+						C->NNZ++;
+					}
+				}
+				//printf("i: %d, j: %d\n", i, j);
+				//List rowC = C->entries[j];
+
+			}
+			//printf("i: %d,length rowD: %d\n", i, length(rowD));
+
+		}
+
+	}
+	freeMatrix(&D);
+	return C;
+}
+/*
+
 // scalarMult()
 // Returns a reference to a new Matrix object representing xA.
 Matrix scalarMult(double x, Matrix A) {
@@ -538,7 +586,7 @@ Matrix product(Matrix A, Matrix B) {
 // list of pairs "(col, val)" giving the column numbers and non-zero values
 // in that row. The double val will be rounded to 1 decimal point.
 
-void printMatrix(FILE * out, Matrix M) {
+void printMatrix(FILE* out, Matrix M) {
 	if (M == NULL) {
 		fprintf(stderr, "Matrix Error: printMatrix() called on NULL Matrix reference\n");
 		exit(EXIT_FAILURE);
@@ -546,17 +594,21 @@ void printMatrix(FILE * out, Matrix M) {
 	for (int i = 0; i < size(M); i++) {
 		List L = M->entries[i];
 		//fprintf(out, "Index: %d, element val: %f\n", index(L), ((Entry)get(L))->value);
-		if (L != NULL && length(L) != 0) {
+		if (length(L) != 0) {
 			fprintf(out, "%d: ", i + 1);
 			for (moveFront(L); index(L) >= 0; moveNext(L)) {
 				Entry entry = (Entry)get(L);
 				fprintf(out, "(%d, %.1f) ", entry->column, entry->value);
 			}
-			printf("\n");
+			fprintf(out, "\n");
 		}
 
 	}
 }
+
+
+
+
 
 
 
